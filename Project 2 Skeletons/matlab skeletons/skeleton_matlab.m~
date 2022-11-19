@@ -38,8 +38,8 @@ end
 epsilon = length(X_comp_bar);
 n = length(y_train);
 
-U = (X_comp - X_comp_bar) * transpose((X_comp - X_comp_bar));
-W = X_train * transpose((X_comp - X_comp_bar));
+U = (X_compX_comp_bar * transpose(X_comp_bar);
+W = X_train * transpose(X_comp_bar);
 V = X_train * transpose(X_train);
 Z = diag(d_train);
 r1 = 100 / epsilon;
