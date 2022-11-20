@@ -19,6 +19,10 @@ legend('Churned','Not Churned');
 title('Histogram of Survival Times');
 
 %% Linear Survival SVM
+X_train = X_train(1:100,:);
+y_train = y_train(1:100,:);
+d_train = d_train(1:100,:);
+
 observedX = X_train(d_train==1,:);
 observedy = y_train(d_train==1);
 y_comp = y_train(y_train>1);
@@ -35,15 +39,17 @@ end
 % FIND THE PREDICTION ON THE TRAINING SET
 %prediction = ...
 
-epsilon = length(X_comp_bar);
+epsilon = size(X_comp_bar,1);
 n = length(y_train);
-
-U = (X_comp - X_comp_bar) * transpose((X_comp - X_comp_bar));
-W = X_train * transpose((X_comp - X_comp_bar));
-V = X_train * transpose(X_train);
+minus = X_comp - X_comp_bar;
+U = minus * minus';
+W = X_train * minus';
+V = X_train * X_train';
 Z = diag(d_train);
 r1 = 100 / epsilon;
 r2 = 10000 / n;
+U = U + 1e-9 * eye(size(U));
+V = V + 1e-9 * eye(size(V));
 
 alpha = sdpvar(epsilon,1);
 beta = sdpvar(n,1);
@@ -55,24 +61,34 @@ constraints = [constraints, beta >= 0];
 constraints = [constraints, beta <= r2];
 constraints = [constraints, gamma >= 0];
 constraints = [constraints, gamma <= r2];
-constraints = [constraints, beta' * ones(length(beta), 1) - d_train' * gamma == 0];
+constraints = [constraints, abs(beta' * ones(length(beta), 1) - d_train' * gamma) <= 1e-12];
 
 % Objective function
-% obj = -1/2 * transpose([alpha; beta - Z * gamma]) * ...
-%     transpose([U, transpose(W); W, V]) * [alpha; beta - Z * gamma] + ...
-%     transpose([y_comp_bar; y_train]) * [alpha; beta - Z * gamma];
-Q = [U, transpose(W); W, V];
+% obj = -1/2 * ([alpha; beta - Z * gamma])' * ...
+%     ([U, transpose(W); W, V])' * [alpha; beta - Z * gamma] + ...
+%     ([y_comp - y_comp_bar; y_train])' * [alpha; beta - Z * gamma];
+
+% obj = -0.5 * alpha' * U * alpha - (beta - Z * gamma)' * W * alpha - ...
+%     0.5 * (beta - Z * gamma)' * V * (beta - Z * gamma) + ...
+%     (y_comp - y_comp_bar)' * alpha + y_train' * (beta - Z * gamma);
+
+Q = [U, W'; W, V];
 R = chol(Q);
-x = [alpha; beta - Z * gamma]
+x = [alpha; beta - Z * gamma];
+h = sdpvar(length(x),1);
 constraints = [constraints, h == R * x];
-obj = -1/2 * transpose(h) * h + ...
-    transpose([y_comp_bar; y_train]) * [alpha; beta - Z * gamma];
-
+obj = -1/2 * h' * h + ...
+    [y_comp - y_comp_bar; y_train]' * x;
+obj = - obj;
 % Specify solver settings, run solver, and retrieve optimal solution
-ops = sdpsettings('solver', 'mosek', 'verbose', 1);
-diagnosis = optimize([], obj, ops);
-theta = value(theta);
+ops = sdpsettings('solver', 'gurobi', 'verbose', 1);    % mosek	gurobi sdpt3
+diagnosis = optimize(constraints, obj, ops);
 
+w = alpha' * (X_comp - X_comp_bar) + (beta - gamma .* d_train)' * X_train;
+b = y_train - X_train * w';
+
+
+prediction = X_train * w' + 50;
 
 %% Display Training Results
 plot_results(y_train, prediction, d_train, 'Linear Survival (Training)')
