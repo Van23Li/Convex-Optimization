@@ -62,6 +62,7 @@ constraints = [constraints, gamma >= 0];
 constraints = [constraints, gamma <= r2];
 constraints = [constraints, abs(beta' * ones(length(beta), 1) - d_train' * gamma) <= 1e-12];
 
+
 % Objective function
 Q = [U, W'; W, V];
 R = chol(Q);
@@ -286,7 +287,7 @@ for k = 1:n
             k_X_train_X_train(i,:) = kernel(X_train(i,:), X_train(k,:));
     end
     if beta(k) > 0 + 1e-12 || ...
-            (gamma(k) > 0 + 1e-12 && d_train(k) > 0)
+            (gamma(i) > 0 + 1e-12 && d_train(i) > 0)
         b = [b, y_train(k) - alpha' * (k_X_comp_X_train - k_X_comp_bar_X_train) - (beta - Z * gamma)' * k_X_train_X_train];
     end
 end
@@ -317,8 +318,9 @@ compute_metrics(y_train, prediction, d_train)
 %% Display Testing Results
 disp('Test Results')
 % YOUR CODE HERE:
+%prediction = ...
+%FIND THE PREDICTION ON THE TEST SET
 
-% Fine the prediction on the test set
 for i = 1:epsilon
     for j = 1:length(X_test)
         X_pre_1(i,j) = kernel(X_comp(i,:), X_test(j,:)) - kernel(X_comp_bar(i,:), X_test(j,:));
@@ -330,9 +332,9 @@ for i = 1:n
     end
 end
 prediction = alpha' * X_pre_1 + (beta - Z * gamma)' * X_pre_2 + b_mean;
+
 prediction = prediction';
 
-% Display Testing Results
 plot_results(y_test, prediction, d_test, 'Kernel Survival (Testing)');
 compute_metrics(y_test, prediction, d_test);
 
